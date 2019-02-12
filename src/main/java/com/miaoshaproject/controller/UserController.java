@@ -1,5 +1,6 @@
 package com.miaoshaproject.controller;
 
+import com.alibaba.druid.util.StringUtils;
 import com.miaoshaproject.controller.viewobject.UserVO;
 import com.miaoshaproject.error.BusinessException;
 import com.miaoshaproject.error.EmBusinessError;
@@ -11,12 +12,16 @@ import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
+import sun.misc.BASE64Encoder;
 
+import java.io.UnsupportedEncodingException;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.Random;
 
 @Controller
 @RequestMapping("/user")
-@CrossOrigin
+@CrossOrigin(allowCredentials="true",allowedHeaders="*")
 
 public class UserController extends BaseController {
 
@@ -25,6 +30,61 @@ public class UserController extends BaseController {
 
     @Autowired
     private HttpServletRequest httpServletRequest;
+
+    @RequestMapping(value = "/login",method = {RequestMethod.POST})
+    @ResponseBody
+    public CommonReturnType login(@RequestParam("telphone")String telphone,
+                                  @RequestParam("password")String password) throws BusinessException, UnsupportedEncodingException, NoSuchAlgorithmException {
+        if(org.apache.commons.lang3.StringUtils.isEmpty(telphone)||
+                org.apache.commons.lang3.StringUtils.isEmpty(password)){
+            throw new BusinessException(EmBusinessError.PARAMETER_VALIDATION_ERROR);
+        }
+
+        //用户登录
+
+        UserModel userModel = userService.validateLogin(telphone,this.EncodeByMD5(password));
+
+        this.httpServletRequest.getSession().setAttribute("IS_LOGIN",true);
+        this.httpServletRequest.getSession().setAttribute("LOGIN_USER",userModel);
+
+        return CommonReturnType.create(null);
+    }
+
+
+    @RequestMapping(value = "/register",method = {RequestMethod.POST})
+    @ResponseBody
+    public CommonReturnType register(@RequestParam("telphone")String telphone,
+                                     @RequestParam("optCode")String optCode,
+                                     @RequestParam("name")String name,
+                                     @RequestParam("gender")Integer gender,
+                                     @RequestParam("age")Integer age,
+                                     @RequestParam("password")String password) throws BusinessException, UnsupportedEncodingException, NoSuchAlgorithmException {
+
+        String inSessionOptCode = (String) this.httpServletRequest.getSession().getAttribute(telphone);
+        if(!StringUtils.equals(optCode,inSessionOptCode)){
+            throw new BusinessException(EmBusinessError.PARAMETER_VALIDATION_ERROR,"短信验证码不正确");
+        }
+
+        UserModel userModel = new UserModel();
+        userModel.setName(name);
+        userModel.setAge(age);
+        userModel.setGender(new Byte(String.valueOf(gender.intValue())));
+        userModel.setTelphone(telphone);
+        userModel.setRegisterMode("byphone");
+        userModel.setEncrptPassword(this.EncodeByMD5(password));
+
+        userService.register(userModel);
+
+        return CommonReturnType.create(null);
+    }
+
+    public String EncodeByMD5(String str) throws NoSuchAlgorithmException, UnsupportedEncodingException {
+        MessageDigest md5 = MessageDigest.getInstance("MD5");
+        BASE64Encoder base64en = new BASE64Encoder();
+        String newstr = base64en.encode(md5.digest(str.getBytes("utf-8")));
+        return newstr;
+    }
+
 
     @RequestMapping(value = "/getopt",method = {RequestMethod.POST})
     @ResponseBody

@@ -12,7 +12,8 @@ public enum EmBusinessError implements CommonError {
     PARAMETER_VALIDATION_ERROR(10001,"参数不合法"),
     UNKNOWN_ERROR(10002,"未知错误"),
 
-    USR_NOT_EXIT(20001,"用户不存在")
+    USR_NOT_EXIT(20001,"用户不存在"),
+    USR_LOGIN_FAIL(20002,"用户手机号或密码不正确")
 
     ;
 
